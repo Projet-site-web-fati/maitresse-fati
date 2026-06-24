@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getContacts, createContact } from "@/lib/queries";
 
 export async function GET() {
-  const db = getDb();
-  const rows = db.prepare("SELECT * FROM contacts ORDER BY created_at DESC").all();
-  return NextResponse.json(rows);
+  try {
+    const contacts = await getContacts();
+    return NextResponse.json(contacts);
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { name, email, subject, message } = body;
-  if (!name || !email || !subject || !message)
-    return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
-  const db = getDb();
-  const result = db
-    .prepare("INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)")
-    .run(name, email, subject, message);
-  return NextResponse.json({ id: result.lastInsertRowid }, { status: 201 });
+  try {
+    const body = await req.json();
+    const { name, email, subject, message } = body;
+    
+    if (!name || !email || !subject || !message)
+      return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
+    
+    await createContact({ name, email, subject, message });
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }

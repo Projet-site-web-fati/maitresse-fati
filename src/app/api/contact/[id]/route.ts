@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { markContactAsRead, deleteContact } from "@/lib/queries";
 
 export async function PATCH(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const db = getDb();
-  db.prepare("UPDATE contacts SET is_read = 1 WHERE id = ?").run(id);
-  return NextResponse.json({ success: true });
+  try {
+    const { id } = await params;
+    await markContactAsRead(parseInt(id));
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const db = getDb();
-  db.prepare("DELETE FROM contacts WHERE id = ?").run(id);
-  return NextResponse.json({ success: true });
+  try {
+    const { id } = await params;
+    await deleteContact(parseInt(id));
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }
