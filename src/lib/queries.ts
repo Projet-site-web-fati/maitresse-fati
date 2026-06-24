@@ -130,11 +130,11 @@ export async function updateHomework(id: number, data: any) {
   const updates = Object.entries(data)
     .map(([key]) => `${key} = ?`)
     .join(', ');
-  const values = Object.values(data);
+  const values = Object.values(data) as any[];
 
   const result = await db.execute({
     sql: `UPDATE homework SET ${updates} WHERE id = ?`,
-    args: [...values, id],
+    args: [...values, id] as any[],
   });
   return result;
 }

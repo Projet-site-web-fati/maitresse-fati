@@ -1,20 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getLessons, createLesson } from "@/lib/queries";
 
 export async function GET() {
-  const db = getDb();
-  const rows = db.prepare("SELECT * FROM lessons ORDER BY created_at DESC").all();
-  return NextResponse.json(rows);
+  try {
+    const lessons = await getLessons();
+    return NextResponse.json(lessons);
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { title, content, subject, level, chapter = "", file_url = "", color = "" } = body;
-  if (!title || !content || !subject || !level)
-    return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
-  const db = getDb();
-  const result = db
-    .prepare("INSERT INTO lessons (title, content, subject, level, chapter, file_url, color) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(title, content, subject, level, chapter, file_url, color);
-  return NextResponse.json({ id: result.lastInsertRowid }, { status: 201 });
+  try {
+    const body = await req.json();
+    const { title, content, subject, level, chapter = "", file_url = "", color = "" } = body;
+    if (!title || !content || !subject || !level)
+      return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
+    await createLesson({ title, content, subject, level, chapter, file_url, color });
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }

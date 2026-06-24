@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDocuments, createDocument } from "@/lib/queries";
 
 export async function GET() {
-  const db = getDb();
-  const rows = db.prepare("SELECT * FROM documents ORDER BY created_at DESC").all();
-  return NextResponse.json(rows);
+  try {
+    const documents = await getDocuments();
+    return NextResponse.json(documents);
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { title, file_url = "", icon = "📄" } = body;
-  if (!title) return NextResponse.json({ error: "Titre requis" }, { status: 400 });
-  const db = getDb();
-  const result = db
-    .prepare("INSERT INTO documents (title, file_url, icon) VALUES (?, ?, ?)")
-    .run(title, file_url, icon);
-  return NextResponse.json({ id: result.lastInsertRowid }, { status: 201 });
+  try {
+    const body = await req.json();
+    const { title, file_url = "", icon = "📄" } = body;
+    if (!title)
+      return NextResponse.json({ error: "Titre requis" }, { status: 400 });
+    await createDocument({ title, file_url, icon });
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }

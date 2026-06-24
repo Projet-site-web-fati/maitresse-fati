@@ -1,28 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { uploadToB2, deleteFromB2 } from "@/lib/b2";
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
-    if (!file) return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
+    const category = formData.get("category") as string || "documents";
+
+    if (!file)
+      return NextResponse.json({ error: "Fichier manquant" }, { status: 400 });
+
     if (file.size > 15 * 1024 * 1024)
       return NextResponse.json({ error: "Fichier trop volumineux (max 15 Mo)" }, { status: 400 });
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const buffer = await file.arrayBuffer();
+    const fileName = `${category}/${Date.now()}-${file.name}`;
+    const url = await uploadToB2(Buffer.from(buffer), fileName, file.type);
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
+    return NextResponse.json({ url }, { status: 201 });
+  } catch (error) {
+    console.error("Upload error:", error);
+    return NextResponse.json({ error: "Erreur upload" }, { status: 500 });
+  }
+}
 
-    const ext = path.extname(file.name);
-    const base = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 50);
-    const fileName = `${Date.now()}_${base}${ext}`;
+export async function DELETE(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { fileName } = body;
 
-    await writeFile(path.join(uploadDir, fileName), buffer);
-    return NextResponse.json({ url: `/uploads/${fileName}` });
-  } catch {
-    return NextResponse.json({ error: "Erreur lors de l'upload" }, { status: 500 });
+    if (!fileName)
+      return NextResponse.json({ error: "Fichier manquant" }, { status: 400 });
+
+    await deleteFromB2(fileName);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete error:", error);
+    return NextResponse.json({ error: "Erreur suppression" }, { status: 500 });
   }
 }

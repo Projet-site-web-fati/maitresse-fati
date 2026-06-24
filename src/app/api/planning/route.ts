@@ -1,20 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPlanning, createPlanning } from "@/lib/queries";
 
 export async function GET() {
-  const db = getDb();
-  const rows = db.prepare("SELECT * FROM planning ORDER BY created_at DESC").all();
-  return NextResponse.json(rows);
+  try {
+    const planning = await getPlanning();
+    return NextResponse.json(planning);
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { title, content, period, subject, level, file_url = "", color = "" } = body;
-  if (!title || !content || !period || !subject || !level)
-    return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
-  const db = getDb();
-  const result = db
-    .prepare("INSERT INTO planning (title, content, period, subject, level, file_url, color) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(title, content, period, subject, level, file_url, color);
-  return NextResponse.json({ id: result.lastInsertRowid }, { status: 201 });
+  try {
+    const body = await req.json();
+    const { title, content, period, subject, level, file_url = "", color = "" } = body;
+    if (!title || !content || !period || !subject || !level)
+      return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
+    await createPlanning({ title, content, period, subject, level, file_url, color });
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }
