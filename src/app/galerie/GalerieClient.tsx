@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { getMediaUrl } from "@/lib/media";
 
 interface Photo {
   id: number;
@@ -73,7 +74,7 @@ export default function GalerieClient({ photos, albums }: { photos: Photo[]; alb
                   <div style={{ height: "180px", position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${color}25, ${color}50)` }}>
                     {thumb
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={thumb.image_url} alt={album} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ? <img src={getMediaUrl(thumb.image_url)} alt={album} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "4rem", opacity: 0.6 }}>📸</div>
                     }
                     {/* Count badge */}
@@ -86,7 +87,7 @@ export default function GalerieClient({ photos, albums }: { photos: Photo[]; alb
                         {albumList.slice(0, 3).map((p, j) => (
                           p.image_url && !p.image_url.includes("placeholder") && j > 0
                             // eslint-disable-next-line @next/next/no-img-element
-                            ? <img key={p.id} src={p.image_url} alt="" style={{ width: "30px", height: "30px", objectFit: "cover", borderRadius: "4px", border: "2px solid white", opacity: 0.85 }} />
+                            ? <img key={p.id} src={getMediaUrl(p.image_url)} alt="" style={{ width: "30px", height: "30px", objectFit: "cover", borderRadius: "4px", border: "2px solid white", opacity: 0.85 }} />
                             : null
                         ))}
                       </div>
@@ -131,7 +132,7 @@ export default function GalerieClient({ photos, albums }: { photos: Photo[]; alb
             <div style={{ maxWidth: "900px", width: "100%", textAlign: "center" }}>
               {current.image_url && !current.image_url.includes("placeholder")
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={current.image_url} alt={current.title} style={{ maxHeight: "calc(100vh - 220px)", maxWidth: "100%", objectFit: "contain", borderRadius: "0.75rem", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }} />
+                ? <img src={getMediaUrl(current.image_url)} alt={current.title} style={{ maxHeight: "calc(100vh - 220px)", maxWidth: "100%", objectFit: "contain", borderRadius: "0.75rem", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }} />
                 : <div style={{ height: "300px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "6rem", opacity: 0.5 }}>📸</div>
               }
               {/* Caption */}
@@ -155,7 +156,7 @@ export default function GalerieClient({ photos, albums }: { photos: Photo[]; alb
                 <div key={p.id} onClick={() => setIdx(i)} style={{ flexShrink: 0, width: "60px", height: "60px", borderRadius: "0.4rem", overflow: "hidden", cursor: "pointer", border: i === idx ? "2px solid white" : "2px solid rgba(255,255,255,0.2)", opacity: i === idx ? 1 : 0.55, transition: "all 0.15s" }}>
                   {p.image_url && !p.image_url.includes("placeholder")
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={p.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ? <img src={getMediaUrl(p.image_url)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     : <div style={{ width: "100%", height: "100%", background: "#374151", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>📸</div>
                   }
                 </div>

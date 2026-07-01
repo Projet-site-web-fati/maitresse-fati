@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { getMediaUrl } from "@/lib/media";
 
 interface Correction { id: number; title: string; dictee_text: string; correction: string; bareme: string; notes: string; level: string; week_number: number; created_at: string; file_url?: string | null; color?: string | null; }
 interface Planning   { id: number; title: string; content: string; period: string; subject: string; level: string; created_at: string; file_url?: string | null; color?: string | null; }
@@ -672,7 +673,7 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
                         <div style={{ height:"100px", overflow:"hidden", background:"#FCE7F3", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           {p.image_url && p.image_url !== "/images/placeholder-class.jpg"
                             // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={p.image_url} alt={p.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                            ? <img src={getMediaUrl(p.image_url)} alt={p.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                             : <span style={{ fontSize:"2rem", opacity:0.4 }}>📸</span>}
                         </div>
                         <div style={{ padding:"0.5rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}>

@@ -9,8 +9,10 @@ const s3Client = new S3Client({
     accessKeyId: process.env.B2_KEY_ID || '',
     secretAccessKey: process.env.B2_APPLICATION_KEY || '',
   },
+  forcePathStyle: true,
 });
 
+const BUCKET_NAME = process.env.B2_BUCKET_NAME || 'fatibucket';
 const BUCKET_ID = process.env.B2_BUCKET_ID || '';
 
 /**
@@ -27,7 +29,7 @@ export async function uploadToB2(
 ): Promise<string> {
   try {
     const command = new PutObjectCommand({
-      Bucket: BUCKET_ID,
+      Bucket: BUCKET_NAME,
       Key: fileName,
       Body: file,
       ContentType: contentType,
@@ -35,9 +37,9 @@ export async function uploadToB2(
 
     await s3Client.send(command);
 
-    // Return public URL
+    // Return public URL (path-style)
     const endpoint = process.env.B2_ENDPOINT || 's3.eu-central-003.backblazeb2.com';
-    return `https://${endpoint}/${BUCKET_ID}/${fileName}`;
+    return `https://${endpoint}/${BUCKET_NAME}/${fileName}`;
   } catch (error) {
     console.error('B2 upload error:', error);
     throw new Error(`Failed to upload file to B2: ${error}`);
@@ -51,7 +53,7 @@ export async function uploadToB2(
 export async function deleteFromB2(fileName: string): Promise<void> {
   try {
     const command = new DeleteObjectCommand({
-      Bucket: BUCKET_ID,
+      Bucket: BUCKET_NAME,
       Key: fileName,
     });
 
@@ -73,7 +75,7 @@ export async function getB2SignedUrl(
 ): Promise<string> {
   try {
     const command = new GetObjectCommand({
-      Bucket: BUCKET_ID,
+      Bucket: BUCKET_NAME,
       Key: fileName,
     });
 
