@@ -62,6 +62,7 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
   const [editingPlan, setEditingPlan] = useState<Planning   | null>(null);
   const [editingCorr, setEditingCorr] = useState<Correction | null>(null);
   const [editingPhoto,setEditingPhoto]= useState<Photo      | null>(null);
+  const [editPhotoImages, setEditPhotoImages] = useState<string[]>([]);
 
   // Forms
   const [hwForm,    setHwForm]    = useState({ title:"", description:"", subject:"Français", level:"CM1", due_date:"", file_url:"", color:"" });
@@ -136,7 +137,21 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
   async function submitEditDoc(e: React.FormEvent)   { e.preventDefault(); if(!editingDoc)   return; await api.put(`/api/documents/${editingDoc.id}`,      editingDoc);   setEditingDoc(null);   fetchAll(); }
   async function submitEditPlan(e: React.FormEvent)  { e.preventDefault(); if(!editingPlan)  return; await api.put(`/api/planning/${editingPlan.id}`,      editingPlan);  setEditingPlan(null);  fetchAll(); }
   async function submitEditCorr(e: React.FormEvent)  { e.preventDefault(); if(!editingCorr)  return; await api.put(`/api/corrections/${editingCorr.id}`,   editingCorr);  setEditingCorr(null);  fetchAll(); }
-  async function submitEditPhoto(e: React.FormEvent) { e.preventDefault(); if(!editingPhoto) return; await api.put(`/api/photos/${editingPhoto.id}`,       editingPhoto); setEditingPhoto(null); fetchAll(); }
+  async function submitEditPhoto(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingPhoto) return;
+    // Première image = remplace la photo existante
+    const [firstUrl, ...extraUrls] = editPhotoImages.filter(Boolean);
+    const updatedPhoto = firstUrl ? { ...editingPhoto, image_url: firstUrl } : editingPhoto;
+    await api.put(`/api/photos/${editingPhoto.id}`, updatedPhoto);
+    // Images supplémentaires = nouvelles photos dans le même album
+    for (const url of extraUrls) {
+      await api.post("/api/photos", { title: editingPhoto.album, description: editingPhoto.description, album: editingPhoto.album, image_url: url });
+    }
+    setEditingPhoto(null);
+    setEditPhotoImages([]);
+    fetchAll();
+  }
 
   async function markRead(id: number) { await fetch(`/api/contact/${id}`, { method:"PATCH" }); fetchAll(); }
 
@@ -151,8 +166,8 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
     else { setPwdMsg({type:"err", text:data.error||"Erreur."}); }
   }
 
-  function switchTab(t: string) { setTab(t); setSection(DEFAULT_SECTION[t] ?? t); setOpenForm(false); setEditingHw(null); setEditingLesson(null); setEditingRes(null); setEditingAnn(null); setEditingEvent(null); setEditingDoc(null); setEditingPlan(null); setEditingCorr(null); setEditingPhoto(null); }
-  function switchSection(s: string) { setSection(s); setOpenForm(false); setEditingHw(null); setEditingLesson(null); setEditingRes(null); setEditingAnn(null); setEditingEvent(null); setEditingDoc(null); setEditingPlan(null); setEditingCorr(null); setEditingPhoto(null); }
+  function switchTab(t: string) { setTab(t); setSection(DEFAULT_SECTION[t] ?? t); setOpenForm(false); setEditingHw(null); setEditingLesson(null); setEditingRes(null); setEditingAnn(null); setEditingEvent(null); setEditingDoc(null); setEditingPlan(null); setEditingCorr(null); setEditingPhoto(null); setEditPhotoImages([]); }
+  function switchSection(s: string) { setSection(s); setOpenForm(false); setEditingHw(null); setEditingLesson(null); setEditingRes(null); setEditingAnn(null); setEditingEvent(null); setEditingDoc(null); setEditingPlan(null); setEditingCorr(null); setEditingPhoto(null); setEditPhotoImages([]); }
 
   const unreadCount = contacts.filter(c => !c.is_read).length;
   const sidebarItems = SIDEBAR[tab];
@@ -616,7 +631,7 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
 
           {/* ── PHOTOS ── */}
           {tab === "photos" && (
-            <SectionWrap title="Galerie Photos" color="#EC4899" onAdd={() => { setOpenForm(o => !o); setEditingPhoto(null); }}>
+            <SectionWrap title="Galerie Photos" color="#EC4899" onAdd={() => { setOpenForm(o => !o); setEditingPhoto(null); setEditPhotoImages([]); }}>
               {openForm && !editingPhoto && (() => {
                 const existingAlbums = [...new Set(photos.map(p => p.album))].filter(Boolean);
                 return (
@@ -648,17 +663,27 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
               })()}
               {editingPhoto && (() => {
                 const existingAlbums = [...new Set(photos.map(p => p.album))].filter(Boolean);
+                // Initialiser les images si pas encore fait
+                if (editPhotoImages.length === 0 && editingPhoto.image_url) {
+                  setEditPhotoImages([editingPhoto.image_url]);
+                }
                 return (
                   <form onSubmit={submitEditPhoto} style={fmS("#FDF2F8","#FBCFE8")}>
-                    <p style={eL}>✏️ Modifier la photo</p>
+                    <p style={eL}>✏️ Modifier / compléter l'album</p>
                     <div>
                       <label style={{ display:"block", fontWeight:700, fontSize:"0.8rem", color:"#374151", marginBottom:"0.3rem" }}>Album</label>
                       <select value={editingPhoto.album} onChange={e=>setEditingPhoto({...editingPhoto,album:e.target.value})} style={{ width:"100%", padding:"0.55rem 0.7rem", borderRadius:"0.5rem", border:"2px solid #E2E8F0", fontSize:"0.88rem", fontFamily:"'Nunito',sans-serif" }}>
                         {existingAlbums.map(a => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </div>
-                    <FUF label="📎 Remplacer l'image" value={editingPhoto.image_url??""} onChange={v=>setEditingPhoto({...editingPhoto,image_url:v})} accept=".png,.jpg,.jpeg,.gif,.webp" />
-                    <FA onCancel={()=>setEditingPhoto(null)} color="#EC4899" saveLabel="💾 Sauvegarder" />
+                    <div>
+                      <label style={{ display:"block", fontWeight:700, fontSize:"0.8rem", color:"#374151", marginBottom:"0.4rem" }}>
+                        📷 Photos {editPhotoImages.filter(Boolean).length > 0 ? `(${editPhotoImages.filter(Boolean).length} sélectionnée${editPhotoImages.filter(Boolean).length > 1 ? "s" : ""})` : ""}
+                      </label>
+                      <p style={{ margin:"0 0 0.5rem", fontSize:"0.73rem", color:"#94A3B8" }}>La 1ère photo remplace l'image actuelle — les suivantes sont ajoutées à l'album.</p>
+                      <MultiUpload images={editPhotoImages} onChange={setEditPhotoImages} />
+                    </div>
+                    <FA onCancel={()=>{ setEditingPhoto(null); setEditPhotoImages([]); }} color="#EC4899" saveLabel="💾 Sauvegarder" />
                   </form>
                 );
               })()}
@@ -678,7 +703,7 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
                         </div>
                         <div style={{ padding:"0.5rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                           <span style={{ fontSize:"0.78rem", fontWeight:700, color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{p.title}</span>
-                          <Btns onEdit={()=>{setEditingPhoto(p);setOpenForm(false);}} onDelete={()=>del("photos",p.id)} />
+                          <Btns onEdit={()=>{ setEditingPhoto(p); setEditPhotoImages(p.image_url ? [p.image_url] : []); setOpenForm(false); }} onDelete={()=>del("photos",p.id)} />
                         </div>
                       </div>
                     ))}
