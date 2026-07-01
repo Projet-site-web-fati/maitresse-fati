@@ -637,7 +637,7 @@ export default function EnseignantDashboard({ onLogout }: { onLogout: () => void
                     {/* Multi-image upload */}
                     <div>
                       <label style={{ display:"block", fontWeight:700, fontSize:"0.8rem", color:"#374151", marginBottom:"0.5rem" }}>
-                        📷 Images ({photoImages.filter(Boolean).length}/{photoImages.length} — max 5)
+                        📷 Images {photoImages.filter(Boolean).length > 0 ? `(${photoImages.filter(Boolean).length} sélectionnée${photoImages.filter(Boolean).length > 1 ? "s" : ""})` : ""}
                       </label>
                       <MultiUpload images={photoImages} onChange={setPhotoImages} />
                     </div>
@@ -856,49 +856,81 @@ function RTE({ label, initialValue="", onChange, minHeight="160px", required }: 
 
 // ── Multi-image upload (max 5 slots) ──
 function MultiUpload({ images, onChange }: { images: string[]; onChange: (imgs: string[]) => void }) {
-  const [uploading, setUploading] = useState<number | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  async function uploadFile(file: File, idx: number) {
-    setUploading(idx);
-    const fd = new FormData();
-    fd.append("file", file);
-    try {
-      const r = await fetch("/api/upload", { method:"POST", body:fd });
-      const d = await r.json();
-      if (d.url) { const next = [...images]; next[idx] = d.url; onChange(next); }
-    } finally { setUploading(null); }
+  async function handleFiles(files: FileList) {
+    const list = Array.from(files);
+    if (!list.length) return;
+    setProgress({ done: 0, total: list.length });
+    const results: string[] = [];
+    for (const file of list) {
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        const r = await fetch("/api/upload", { method: "POST", body: fd });
+        const d = await r.json();
+        if (d.url) results.push(d.url);
+      } catch { /* skip */ }
+      setProgress(p => p ? { ...p, done: p.done + 1 } : null);
+    }
+    onChange([...images.filter(Boolean), ...results]);
+    setProgress(null);
+    if (inputRef.current) inputRef.current.value = "";
   }
 
-  function clearSlot(idx: number) { const next = [...images]; next[idx] = ""; onChange(next); }
-  function addSlot() { if (images.length < 5) onChange([...images, ""]); }
-  function removeSlot(idx: number) { const next = images.filter((_,i) => i !== idx); onChange(next.length ? next : [""]); }
+  function remove(idx: number) {
+    const next = images.filter((_, i) => i !== idx);
+    onChange(next.length ? next : []);
+  }
+
+  const uploaded = images.filter(Boolean);
 
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:"0.6rem" }}>
-      {images.map((url, idx) => (
-        <div key={idx} style={{ borderRadius:"0.65rem", overflow:"hidden", border:"2px dashed #FBCFE8", background:"white", position:"relative", height:"110px" }}>
-          {url ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-              <button type="button" onClick={() => clearSlot(idx)} style={{ position:"absolute", top:"4px", right:"4px", background:"rgba(220,38,38,0.85)", border:"none", borderRadius:"50%", width:"20px", height:"20px", color:"white", cursor:"pointer", fontSize:"0.65rem", fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-              {idx > 0 && <button type="button" onClick={() => removeSlot(idx)} style={{ position:"absolute", bottom:"4px", right:"4px", background:"rgba(100,116,139,0.8)", border:"none", borderRadius:"0.3rem", padding:"1px 5px", color:"white", cursor:"pointer", fontSize:"0.6rem" }}>Suppr.</button>}
+    <div>
+      {/* Drop zone / select button */}
+      <div
+        onClick={() => inputRef.current?.click()}
+        style={{ border: "2px dashed #FBCFE8", borderRadius: "0.75rem", padding: "1.25rem", background: "#FDF2F8", cursor: "pointer", textAlign: "center", marginBottom: "0.75rem", transition: "background 0.15s" }}
+        onMouseEnter={e => (e.currentTarget.style.background = "#FCE7F3")}
+        onMouseLeave={e => (e.currentTarget.style.background = "#FDF2F8")}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".png,.jpg,.jpeg,.gif,.webp"
+          multiple
+          style={{ display: "none" }}
+          onChange={e => { if (e.target.files?.length) handleFiles(e.target.files); }}
+        />
+        <div style={{ fontSize: "1.8rem", marginBottom: "0.3rem" }}>📷</div>
+        {progress
+          ? <p style={{ margin: 0, fontWeight: 700, fontSize: "0.85rem", color: "#EC4899" }}>⏳ Envoi {progress.done}/{progress.total}…</p>
+          : <>
+              <p style={{ margin: 0, fontWeight: 800, fontSize: "0.88rem", color: "#EC4899" }}>Cliquer pour sélectionner des photos</p>
+              <p style={{ margin: "0.2rem 0 0", fontSize: "0.75rem", color: "#94A3B8" }}>Sélection multiple possible (PNG, JPG, GIF, WebP)</p>
             </>
-          ) : (
-            <label style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", cursor:"pointer", color:"#EC4899", gap:"0.2rem" }}>
-              <span style={{ fontSize:"1.6rem" }}>📷</span>
-              <span style={{ fontSize:"0.7rem", fontWeight:700 }}>{uploading === idx ? "Envoi…" : "Ajouter"}</span>
-              <input type="file" accept=".png,.jpg,.jpeg,.gif,.webp" style={{ display:"none" }}
-                onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], idx); }} />
-            </label>
-          )}
+        }
+      </div>
+      {/* Thumbnails */}
+      {uploaded.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: "0.5rem" }}>
+          {uploaded.map((url, idx) => (
+            <div key={idx} style={{ position: "relative", borderRadius: "0.55rem", overflow: "hidden", border: "2px solid #FBCFE8", height: "90px" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={getMediaUrl(url)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <button type="button" onClick={() => remove(idx)}
+                style={{ position: "absolute", top: "3px", right: "3px", background: "rgba(220,38,38,0.85)", border: "none", borderRadius: "50%", width: "20px", height: "20px", color: "white", cursor: "pointer", fontWeight: 800, fontSize: "0.65rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                ✕
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
-      {images.length < 5 && (
-        <button type="button" onClick={addSlot} style={{ border:"2px dashed #FBCFE8", borderRadius:"0.65rem", height:"110px", background:"transparent", cursor:"pointer", color:"#EC4899", fontWeight:700, fontSize:"0.82rem", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"0.25rem" }}>
-          <span style={{ fontSize:"1.4rem" }}>＋</span>
-          <span>Photo</span>
-        </button>
+      )}
+      {uploaded.length > 0 && (
+        <p style={{ margin: "0.4rem 0 0", fontSize: "0.75rem", color: "#94A3B8", textAlign: "right" }}>
+          {uploaded.length} photo{uploaded.length > 1 ? "s" : ""} sélectionnée{uploaded.length > 1 ? "s" : ""}
+        </p>
       )}
     </div>
   );
